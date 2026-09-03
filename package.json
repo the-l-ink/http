@@ -1,6 +1,6 @@
 {
   "name": "@the-link/http",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "HTTP and WebSocket adapter for The Link.",
   "type": "module",
   "sideEffects": false,
@@ -37,7 +37,7 @@
     "prepack": "node --run build"
   },
   "dependencies": {
-    "@the-link/core": "^0.2.0",
+    "@the-link/core": "^0.3.0",
     "hono": "^4.13.2",
     "uuid": "^14.0.1"
   },

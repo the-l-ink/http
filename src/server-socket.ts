@@ -1,6 +1,4 @@
-import { TheLink, Tunnel } from "@the-link/core"
-import { defaultSerialize } from "./codec.js"
-import type { Serialize } from "./codec.js"
+import { TheLink, Tunnel, serializeJSON, type Serialize } from "@the-link/core"
 import { WSContext } from "hono/ws"
 
 /**
@@ -40,7 +38,7 @@ export default class ServerSocket<Payload = unknown> extends TheLink {
      */
     public readonly payload: Payload
 
-    private serialize: Serialize = defaultSerialize
+    private serialize: Serialize = serializeJSON
 
     /**
      * Initialize the Server Link for one accepted WebSocket connection.

@@ -1,8 +1,5 @@
-import { TheLink } from "@the-link/core"
+import { deserializeJSON, serializeJSON, TheLink, Tunnel, type Deserialize, type Serialize } from "@the-link/core"
 import { receiveBytes } from "./transport.js"
-import { Tunnel } from "@the-link/core"
-import { defaultDeserialize, defaultSerialize } from "./codec.js"
-import type { Deserialize, Serialize } from "./codec.js"
 
 /**
  * Private Client-side Link for one HttpServer subscription.
@@ -40,9 +37,9 @@ export default class ClientSocket<Payload = unknown> extends TheLink {
      */
     public readonly payload: Payload
 
-    private serialize: Serialize = defaultSerialize
+    private serialize: Serialize = serializeJSON
 
-    private deserialize: Deserialize = defaultDeserialize
+    private deserialize: Deserialize = deserializeJSON
 
     /**
      * Initialize the Client Link for one browser WebSocket subscription.

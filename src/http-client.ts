@@ -1,9 +1,6 @@
-import { Tunnel, type Subscriber } from "@the-link/core"
+import { deserializeJSON, serializeJSON, TheLink, Tunnel, type Deserialize, type Serialize, type Subscriber } from "@the-link/core"
 import { bytesToText, receiveBytes } from "./transport.js"
-import { defaultDeserialize, defaultSerialize } from "./codec.js"
-import type { Deserialize, Serialize } from "./codec.js"
 import ClientSocket from "./client-socket.js"
-import { TheLink } from "@the-link/core"
 import { v4 as uuidv4 } from "uuid"
 
 /**
@@ -45,9 +42,9 @@ export class HttpClient extends TheLink {
      */
     private readonly url: string
 
-    private serialize: Serialize = defaultSerialize
+    private serialize: Serialize = serializeJSON
 
-    private deserialize: Deserialize = defaultDeserialize
+    private deserialize: Deserialize = deserializeJSON
 
     /**
      * Active WebSocket-backed Links keyed by connection UUID.

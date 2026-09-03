@@ -1,4 +1,4 @@
-import type { Bytes } from "./codec.js"
+import type { Bytes } from "@the-link/core"
 
 export const receiveBytes = async (value: unknown): Promise<Bytes> => {
 

@@ -5,7 +5,7 @@
     "": {
       "name": "@the-link/http",
       "dependencies": {
-        "@the-link/core": "^0.2.0",
+        "@the-link/core": "^0.3.0",
         "hono": "^4.13.2",
         "uuid": "^14.0.1",
       },
@@ -15,7 +15,7 @@
     },
   },
   "packages": {
-    "@the-link/core": ["@the-link/core@0.2.0", "", { "dependencies": { "uuid": "^14.0.1" } }, "sha512-xUbgY24gn1id1uOM194PiWdgJMw8ApF/Ujjs8E7ENN9jEVJzriwGywF171WeFU7o3azj009HUjfvh7crafOGlA=="],
+    "@the-link/core": ["@the-link/core@0.3.0", "", { "dependencies": { "uuid": "^14.0.1" } }, "sha512-DmyPQQAyugdBVb63Ocrg/Vea+pzW8PgbJujHMVrVM6uh09gJOyZZdhGPBP8f8zO63eYOLElwffakKjJZ936FcQ=="],
 
     "hono": ["hono@4.13.5", "", {}, "sha512-O6+/eCYRkzzzy0rPWwKLiGBR1nFuUPZynnwjxN1MBA62NNqbT0wQEzQyK2gSO5yDIDB336sXQleAhOHrzlYyKw=="],
 
