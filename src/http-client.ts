@@ -1,6 +1,7 @@
 import { deserializeJSON, serializeJSON, TheLink, Tunnel, type Deserialize, type Serialize, type Subscriber } from "@the-link/core"
 import { bytesToText, receiveBytes } from "./transport.js"
 import ClientSocket from "./client-socket.js"
+import { ClientStreams } from "./streams.js"
 import { v4 as uuidv4 } from "uuid"
 
 /**
@@ -52,6 +53,11 @@ export class HttpClient extends TheLink {
     public readonly sockets: Map<string, ClientSocket> = new Map()
 
     /**
+     * Streams crossing this client's messages as references, with their chunks on their own requests.
+     */
+    public readonly streams: ClientStreams
+
+    /**
      * Initialize an HttpClient for an HttpServer base URL.
      *
      * @param url Server base URL that exposes `/publish` and `/subscribe`
@@ -62,6 +68,8 @@ export class HttpClient extends TheLink {
 
         // Store the server base URL for endpoint construction.
         this.url = url
+
+        this.streams = new ClientStreams(url, () => ({ serialize: this.serialize, deserialize: this.deserialize }))
 
         // Forward outbound tunnel events to the server via HTTP POST.
         this.$outbound.forwardTo(this.publishHandler.bind(this))
@@ -180,14 +188,14 @@ export class HttpClient extends TheLink {
         // Send the event envelope to HttpServer's POST /publish endpoint.
         const response = await fetch(`${this.url}/publish`, {
 
-            body: this.serialize([event, ...values]),
+            body: this.serialize([event, ...values], { streams: this.streams }),
 
             method: "POST"
         })
 
         if (!response.ok) throw new Error(await response.text())
 
-        return this.deserialize(new Uint8Array(await response.arrayBuffer()))
+        return this.deserialize(new Uint8Array(await response.arrayBuffer()), { streams: this.streams })
     }
 
     /**
@@ -214,9 +222,9 @@ export class HttpClient extends TheLink {
                 // Wrap the browser WebSocket in a private TheLink half.
                 const socketLink = new ClientSocket(socket, result.data)
 
-                socketLink.setSerialize(value => this.serialize(value))
+                socketLink.setSerialize(value => this.serialize(value, { streams: this.streams }))
 
-                socketLink.setDeserialize(value => this.deserialize(value))
+                socketLink.setDeserialize(value => this.deserialize(value, { streams: this.streams }))
 
                 this.sockets.set(uuid, socketLink)
 

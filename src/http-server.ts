@@ -3,6 +3,7 @@ import { deserializeJSON, serializeJSON, TheLink, Tunnel, type Deserialize, type
 import { receiveBytes, textToBytes } from "./transport.js"
 import { HonoOptions } from "hono/hono-base"
 import ServerSocket from "./server-socket.js"
+import { ServerStreams } from "./streams.js"
 import { BlankEnv } from "hono/types"
 import { Hono, Context } from "hono"
 import { v4 as uuidv4 } from "uuid"
@@ -65,6 +66,11 @@ export class HttpServer extends TheLink {
     public readonly sockets: Map<string, ServerSocket> = new Map()
 
     /**
+     * Streams crossing this server's messages as references, with their chunks on their own requests.
+     */
+    public readonly streams: ServerStreams = new ServerStreams(() => ({ serialize: this.serialize, deserialize: this.deserialize }))
+
+    /**
      * Initialize an HttpServer with an optional Hono configuration object.
      *
      * @param options Hono application options passed to the underlying app
@@ -89,6 +95,11 @@ export class HttpServer extends TheLink {
 
         // Configure client-to-server event publication.
         this.app.post("/publish", this.publishHandler.bind(this))
+
+        // Carry the chunks of streams whose references travel in messages.
+        this.app.get("/stream/:id", context => this.streams.read(context))
+
+        this.app.post("/stream/:id", context => this.streams.write(context))
 
         if (upgradeWebSocket) {
 
@@ -160,12 +171,12 @@ export class HttpServer extends TheLink {
             // Decode the event envelope from the request body.
             const bytes = new Uint8Array(await context.req.arrayBuffer())
 
-            const [event, ...values] = this.deserialize(bytes) as [string, ...unknown[]]
+            const [event, ...values] = this.deserialize(bytes, { streams: this.streams }) as [string, ...unknown[]]
 
             // Route the client event into the server-side inbound tunnel.
             const results = await this.$inbound.publish(event, ...values)
 
-            return context.body(this.serialize(results))
+            return context.body(this.serialize(results, { streams: this.streams }))
         }
 
         catch (exception) {
@@ -223,7 +234,7 @@ export class HttpServer extends TheLink {
             // Wrap the raw WebSocket in TheLink-compatible socket routing.
             const socketLink = new ServerSocket(socket, parsedPayload.current)
 
-            socketLink.setSerialize(value => this.serialize(value))
+            socketLink.setSerialize(value => this.serialize(value, { streams: this.streams }))
 
             // Let application code initialize the connection before notifying the client.
             const response = await this.$internal.publishFirst("subscribe", socketLink)
@@ -256,7 +267,7 @@ export class HttpServer extends TheLink {
         if (socketLink) {
 
             // Decode the event payload from the message.
-            const [eventName, ...values] = this.deserialize(await receiveBytes(event.data)) as [string, ...unknown[]]
+            const [eventName, ...values] = this.deserialize(await receiveBytes(event.data), { streams: this.streams }) as [string, ...unknown[]]
 
             try {
 

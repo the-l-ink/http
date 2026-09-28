@@ -1,6 +1,6 @@
 {
   "name": "@the-link/http",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "HTTP and WebSocket adapter for The Link.",
   "type": "module",
   "sideEffects": false,
@@ -14,7 +14,11 @@
       "default": "./dist/server.js"
     }
   },
-  "files": ["dist", "LICENSE", "README.md"],
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
   "author": "Zohayr SLILEH",
   "license": "MIT",
   "repository": {
@@ -37,7 +41,7 @@
     "prepack": "node --run build"
   },
   "dependencies": {
-    "@the-link/core": "^0.3.0",
+    "@the-link/core": "^0.4.0",
     "hono": "^4.13.2",
     "uuid": "^14.0.1"
   },
