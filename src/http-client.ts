@@ -4,6 +4,24 @@ import ClientSocket from "./client-socket.js"
 import { ClientStreams } from "./streams.js"
 import { v4 as uuidv4 } from "uuid"
 
+/** The wait before reconnecting once an accepted connection closes. */
+const firstReconnectDelay = 1000
+
+/** The longest wait between reconnect attempts that keep failing. */
+const longestReconnectDelay = 30_000
+
+/** Close codes of transient server or network closures, which reconnect. */
+const reconnectCodes = new Set([1001, 1006, 1011, 1012, 1013, 1014])
+
+/**
+ * How long to wait before reconnecting after `failures` attempts in a row closed before the server
+ * accepted them: the first delay after an accepted connection, doubling with each failure.
+ */
+export function reconnectDelay(failures: number) {
+
+    return Math.min(firstReconnectDelay * 2 ** failures, longestReconnectDelay)
+}
+
 /**
  * Client adapter for TheLink over HTTP publishing and WebSocket subscriptions.
  *
@@ -11,7 +29,9 @@ import { v4 as uuidv4 } from "uuid"
  * POST `/publish` endpoint. For subscriptions, it opens a WebSocket connection
  * to `/subscribe`, waits for the server's subscribe envelope, then exposes the
  * connection as a client-side Link. Recoverable WebSocket closures trigger
- * a delayed resubscribe with the original connection payload.
+ * a delayed resubscribe with the original connection payload: one second
+ * after an accepted connection closes, and twice as long after each attempt
+ * in a row that closes before it is accepted, up to thirty seconds.
  *
  * The adapter uses UTF-8 JSON bytes by default, with hooks for custom codecs
  * that must match the corresponding HttpServer.
@@ -119,6 +139,18 @@ export class HttpClient extends TheLink {
      */
     public subscribe(payload: unknown = undefined) {
 
+        return this.connect(payload, 0)
+    }
+
+    /**
+     * Open one WebSocket subscription attempt.
+     *
+     * @param payload Connection payload sent to the server
+     * @param failures Attempts in a row before this one that closed before they were accepted
+     * @returns Connection UUID used for socket tracking and scoped lifecycle events
+     */
+    private connect(payload: unknown, failures: number) {
+
         const searchParams = new URLSearchParams()
 
         // Include caller-provided connection context in the subscribe request.
@@ -134,7 +166,7 @@ export class HttpClient extends TheLink {
         socket.addEventListener("message", (event) => this.webSocketMessageHandler(event, socket, uuid), { once: true })
 
         // Ensure Link cleanup and reconnect handling when the WebSocket closes.
-        socket.addEventListener("close", (event) => this.webSocketCloseHandler(event, payload, uuid))
+        socket.addEventListener("close", (event) => this.webSocketCloseHandler(event, payload, uuid, failures))
 
         return uuid
     }
@@ -249,13 +281,18 @@ export class HttpClient extends TheLink {
      * Publishes the socket-level unsubscribe event before removing the Link
      * from the active map, then publishes `unsubscribe:<uuid>` for callers
      * waiting on that specific subscription. Recoverable close codes open a new
-     * subscription with the original payload after a short delay.
+     * subscription with the original payload: soon after an accepted connection
+     * closes, and later after each attempt in a row that closed before it was accepted.
      *
      * @param event Browser WebSocket close event
      * @param payload Original connection payload used for reconnect attempts
      * @param uuid Connection identifier used to find the Link
+     * @param failures Attempts in a row before this one that closed before they were accepted
      */
-    private async webSocketCloseHandler(event: CloseEvent, payload: unknown, uuid: string) {
+    private async webSocketCloseHandler(event: CloseEvent, payload: unknown, uuid: string, failures: number) {
+
+        // Only an accepted connection is tracked; one that closed before acceptance failed.
+        const accepted = this.sockets.has(uuid)
 
         try {
 
@@ -272,13 +309,13 @@ export class HttpClient extends TheLink {
             this.sockets.delete(uuid)
 
             // Retry transient server or network closures with the original payload.
-            const reconnectCodes = new Set([1001, 1006, 1011, 1012, 1013, 1014])
-
             if (reconnectCodes.has(event.code)) {
 
-                await new Promise(resolve => setTimeout(resolve, 1000))
+                const nextFailures = accepted ? 0 : failures + 1
 
-                this.subscribe(payload)
+                await new Promise(resolve => setTimeout(resolve, reconnectDelay(nextFailures)))
+
+                this.connect(payload, nextFailures)
             }
         }
     }
