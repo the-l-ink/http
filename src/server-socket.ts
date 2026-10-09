@@ -38,6 +38,11 @@ export default class ServerSocket<Payload = unknown> extends TheLink {
      */
     public readonly payload: Payload
 
+    /**
+     * The HTTP request that opened this connection, as the client sent it: its URL and headers.
+     */
+    public readonly request: Request
+
     private serialize: Serialize = serializeJSON
 
     /**
@@ -48,8 +53,9 @@ export default class ServerSocket<Payload = unknown> extends TheLink {
      *
      * @param socket Accepted WebSocket context
      * @param payload Client payload supplied during subscription
+     * @param request HTTP request that opened the connection
      */
-    public constructor(socket: WSContext, payload: Payload) {
+    public constructor(socket: WSContext, payload: Payload, request: Request) {
 
         super()
 
@@ -58,6 +64,8 @@ export default class ServerSocket<Payload = unknown> extends TheLink {
 
         // Preserve caller-provided connection context for application handlers.
         this.payload = payload
+
+        this.request = request
 
         // Send outbound tunnel events to this client automatically.
         this.$outbound.forwardTo(this.publishHandler.bind(this))

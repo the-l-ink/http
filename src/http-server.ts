@@ -232,7 +232,7 @@ export class HttpServer extends TheLink {
             const parsedPayload = this.deserialize(textToBytes(payload)) as { current: unknown }
 
             // Wrap the raw WebSocket in TheLink-compatible socket routing.
-            const socketLink = new ServerSocket(socket, parsedPayload.current)
+            const socketLink = new ServerSocket(socket, parsedPayload.current, context.req.raw)
 
             socketLink.setSerialize(value => this.serialize(value, { streams: this.streams }))
 
