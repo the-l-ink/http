@@ -1,6 +1,6 @@
 {
   "name": "@the-link/http",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "HTTP and WebSocket adapter for The Link.",
   "type": "module",
   "sideEffects": false,
