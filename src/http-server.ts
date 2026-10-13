@@ -9,6 +9,35 @@ import { Hono, Context } from "hono"
 import { v4 as uuidv4 } from "uuid"
 
 /**
+ * How often an open WebSocket is pinged. Proxies on the way close a connection
+ * that carries nothing for a while (Cloudflare after 100 seconds, nginx after
+ * 60 by default); a ping keeps it carrying something.
+ */
+const heartbeat = 30_000
+
+/**
+ * Ping a WebSocket at every heartbeat while it is open.
+ *
+ * Uses the protocol's own ping, which the client answers without waking its
+ * application. Runtimes whose raw socket cannot ping are left as they are.
+ *
+ * @param socket Accepted WebSocket context
+ * @returns The timer to clear when the socket closes
+ */
+function keepAlive(socket: WSContext) {
+
+    const raw = socket.raw as { ping?: () => void } | undefined
+
+    if (typeof raw?.ping !== "function") return undefined
+
+    return setInterval(() => {
+
+        // Only an open socket can be pinged.
+        if (socket.readyState === 1) raw.ping!()
+    }, heartbeat)
+}
+
+/**
  * Hono server adapter for TheLink over HTTP and WebSocket endpoints.
  *
  * Provides a POST `/publish` endpoint for client-to-server events and an
@@ -199,13 +228,25 @@ export class HttpServer extends TheLink {
 
         const uuid = uuidv4()
 
+        let beating: ReturnType<typeof keepAlive>
+
         return {
 
-            onOpen: (_event, socket) => this.webSocketOpenHandler(context, socket, uuid),
+            onOpen: (_event, socket) => {
+
+                beating = keepAlive(socket)
+
+                return this.webSocketOpenHandler(context, socket, uuid)
+            },
 
             onMessage: (event) => this.webSocketMessageHandler(event, uuid),
 
-            onClose: (event) => this.webSocketCloseHandler(event, uuid)
+            onClose: (event) => {
+
+                clearInterval(beating)
+
+                return this.webSocketCloseHandler(event, uuid)
+            }
         }
     }
 
